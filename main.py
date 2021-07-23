@@ -66,9 +66,11 @@ class Server(BaseServer):
                 await self.no_spki(line)
             elif command == "u":
                 await self.unicoder(line, params)
+            elif command in ('fuckedclock', 'skew'):
+                await self.fuckedclock(line)
             elif command == "help":
                 await self.msg(line, "Commands: Unicode stuff: !u <some char> | Server info: !server <servername> |"
-                                     "Lost servers: !missing | Servers w/ no spki: !nospki")
+                                     "Lost servers: !missing | Servers w/ no spki: !nospki | !fuckedclock")
 
     async def msg(self, line, msg):
         source = line.params[0]
@@ -88,6 +90,17 @@ class Server(BaseServer):
         async with aiohttp.ClientSession() as session:
             async with session.get("https://api.shitposting.space/servers.json") as resp:
                 return await resp.json()
+
+    async def fuckedclock(self, line: Line):
+        s = await self._shitposting_query()
+        s = s['servers']
+        fucked = [(x['name'], x['skew']) for x in s.values() if x.get('skew', 0) < -1 or x.get('skew', 0) > 1]
+        fucked.sort(key=lambda x:x[1])
+        if not fucked:
+            return await self.msg(line, "I'm not seeing any really fucked clocks right now.")
+
+        fucked = [f"{x[0]} ({x[1]} secs)" for x in fucked]
+        return await self.msg(line, f"Fucked clocks: {', '.join(fucked)}")
 
     async def unicoder(self, line: Line, params: list):
         chars = params[0]
