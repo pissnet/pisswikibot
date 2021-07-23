@@ -1,5 +1,6 @@
 import re
 import asyncio
+import socket
 import unicodedata
 import urllib.parse
 
@@ -18,14 +19,35 @@ wikilink_re = re.compile(r'\[\[(?:[^|\]]*\|)?([^]]+)]]')
 
 
 class Server(BaseServer):
+    def __init__(self, *args, **kwargs):
+        super(Server, self).__init__(*args, **kwargs)
+        loop = asyncio.get_event_loop()
+        loop.create_task(self.udp_stuff())
+
     async def line_read(self, line: Line):
         print(f"{self.name} < {line.format()}")
         if line.command == "PRIVMSG":
             await self.on_message(line)
         elif line.command == "001":
-            await self.send(build("JOIN", ["#opers,#pissnet"]))
+            await self.send(build("JOIN", ["#opers,#pissnet,#pisswiki"]))
+
+    async def udp_stuff(self):
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        s.setblocking(True)
+        s.settimeout(0)
+        s.bind(("127.0.0.1", 1234))
+        while True:
+            try:
+                (data, addr) = s.recvfrom(128 * 1024)
+            except BlockingIOError:
+                await asyncio.sleep(0.3)
+                continue
+            await self.send(build("PRIVMSG", ["#pisswiki", data.decode()]))
 
     async def on_message(self, line: Line):
+        if line.hostmask.nickname == self.nickname:
+            return
         # Check if it's a [[Wiki]] link
         message = line.params[-1].strip()
         if match := wikilink_re.findall(message):
@@ -203,6 +225,7 @@ class Server(BaseServer):
             await self.send(build("PRIVMSG", [source, f"Page '{page}' not found."]))
             return
         urititle = urllib.parse.quote_plus(pagedata['title'].replace(" ", "_")).replace("%3A", ":")
+        urititle = urititle.replace("%2F", "/")
         if pagedata['title'].startswith("Server:"):
             await self.print_server_info(line, pagedata['title'].replace("Server:", ''))
             return
