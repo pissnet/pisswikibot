@@ -55,7 +55,7 @@ class Server(BaseServer):
                 await self.on_wikilink(line, i)
         if message.startswith("!"):
             message = message.replace("!", '')
-            command = message.split(" ")[0]
+            command = message.split(" ")[0].lower()
             params = message.split(" ")[1:]
             if command in ("server", "s") and len(params) > 0:
                 for i in params[0:5]:
