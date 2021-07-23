@@ -58,7 +58,7 @@ class Server(BaseServer):
             command = message.split(" ")[0]
             params = message.split(" ")[1:]
             if command in ("server", "s") and len(params) > 0:
-                for i in params:
+                for i in params[0:5]:
                     await self.print_server_info(line, i)
             elif command in ("splitservers", "lost", "netsplit", "missing"):
                 await self.split_servers(line)
