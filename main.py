@@ -54,6 +54,18 @@ class Server(BaseServer):
             source = line.hostmask.nickname
         await self.send(build("PRIVMSG", [source, msg]))
 
+    async def _semantic_query(self, query):
+        async with aiohttp.ClientSession() as session:
+            async with session.get('https://wiki.letspiss.net/api.php',
+                                   params={'action': 'ask', 'query': query, 'format': 'json'}) as resp:
+                result = await resp.json()
+                return result['query']['results']
+
+    async def _shitposting_query(self):
+        async with aiohttp.ClientSession() as session:
+            async with session.get("https://api.shitposting.space/servers.json") as resp:
+                return await resp.json()
+
     async def unicoder(self, line: Line, params: list):
         chars = params[0]
         if len(chars) > 10:
@@ -71,12 +83,8 @@ class Server(BaseServer):
 
     async def no_spki(self, line: Line):
         query = "[[Server:+]] [[Category:Nodes without SPKIFP]] [[Node Type::Leaf]] [[Node Status::Active]]|limit=500"
-        async with aiohttp.ClientSession() as session:
-            async with session.get('https://wiki.letspiss.net/api.php',
-                                   params={'action': 'ask', 'query': query, 'format': 'json'}) as resp:
-                wikinodes = await resp.json()
-                wikinodes = wikinodes['query']['results']
-                wikinodes = [x.replace('Server:', '').lower() for x in wikinodes.keys()]
+        wikinodes = await self._semantic_query(query)
+        wikinodes = [x.replace('Server:', '').lower() for x in wikinodes.keys()]
 
         source = line.params[0]
         if "#" not in line.params[0]:
@@ -86,17 +94,12 @@ class Server(BaseServer):
 
     async def split_servers(self, line: Line):
         query = "[[Server:+]] [[Category:Nodes]] [[Node Status::Active]]|?Server Name|?IPv4|?IPv6|limit=500"
-        async with aiohttp.ClientSession() as session:
-            async with session.get('https://wiki.letspiss.net/api.php',
-                                   params={'action': 'ask', 'query': query, 'format': 'json'}) as resp:
-                wikinodes = await resp.json()
-                wikinodes = wikinodes['query']['results']
-                wikinodes = [x.replace('Server:', '').lower() for x in wikinodes.keys()]
+        wikinodes = await self._semantic_query(query)
+        wikinodes = [x.replace('Server:', '').lower() for x in wikinodes.keys()]
 
-            async with session.get("https://api.shitposting.space/servers.json") as resp:
-                alldata = await resp.json()
-                linkednodes = [x['name'].lower() for x in alldata['servers'].values()]
-                linkednodes2 = [x['name'].lower() for x in alldata['servers'].values() if x['description'][0] != '~']
+        alldata = await self._shitposting_query()
+        linkednodes = [x['name'].lower() for x in alldata['servers'].values()]
+        linkednodes2 = [x['name'].lower() for x in alldata['servers'].values() if x['description'][0] != '~']
 
         splitnodes = list(set(wikinodes) - set(linkednodes))
         missingnodes = list(set(linkednodes2) - set(wikinodes))
@@ -117,15 +120,9 @@ class Server(BaseServer):
             query = f"[[Server:{servername}]]|?Server Name|?Owner|?SPKIFP|?Location" \
                     "|?Node Type|?Node Status|?SID"
 
-        async with aiohttp.ClientSession() as session:
-            async with session.get('https://wiki.letspiss.net/api.php',
-                                   params={'action': 'ask', 'query': query, 'format': 'json'}) as resp:
-                server = await resp.json()
+        server = await self._semantic_query(query)
+        alldata = await self._shitposting_query()
 
-            async with session.get("https://api.shitposting.space/servers.json") as resp:
-                alldata = await resp.json()
-
-        server = server['query']['results']
         if not server:
             return False
         server = list(server.values())[0]['printouts']
