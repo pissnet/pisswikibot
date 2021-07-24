@@ -139,7 +139,7 @@ class Server(BaseServer):
 
         splitnodes = list(set(wikinodes) - set(linkednodes))
         missingnodes = list(set(linkednodes2) - set(wikinodes))
-        splitnodes.remove("pbody.polsaker.com")  # We don't wanna show that ugly fucker don't we
+        splitnodes.remove("pbody.polsaker.com")  # We don't wanna show that ugly fucker do we
 
         splitnodes = ", ".join(splitnodes)
         missingnodes = ", ".join(missingnodes)
