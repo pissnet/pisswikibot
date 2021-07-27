@@ -1,6 +1,7 @@
 import re
 import asyncio
 import socket
+from typing import TypedDict, Union
 import unicodedata
 import urllib.parse
 
@@ -16,6 +17,16 @@ SERVERS = [
 
 wikilink_re = re.compile(r'\[\[(?:[^|\]]*\|)?([^]]+)]]')
 
+ShitPostingAPIServersInfo = TypedDict('ShitPostingAPIServersInfo', {
+                                      "birth_date": str, "generation": str, "online_since": str, "release_id": str})
+ShitPostingAPIServersSystem = TypedDict('ShitPostingAPIServersSystem', {
+                                        "os": str, "arch": str, "distro": str})
+ShitPostingAPIServersLocation = TypedDict('ShitPostingAPIServersLocation', {
+                                          "latitude": float, "longitude": float})
+ShitPostingAPIServers = TypedDict('ShitPostingAPIServers', {"sid": str, "name": str, "description": str, "online": bool,
+                                  "info": ShitPostingAPIServersInfo, "admin": list[str], "uplink": str, "version": str, "system": ShitPostingAPIServersSystem, "location": ShitPostingAPIServersLocation, "skew": Union[int, float]})
+ShitPostingAPI = TypedDict("ShitPostingAPI", {
+                           "servers": dict[str, ShitPostingAPIServers], "links": list[tuple[str, str]], "propogation": tuple[tuple[str, str], float]})
 
 class Server(BaseServer):
     def __init__(self, *args, **kwargs):
@@ -89,7 +100,7 @@ class Server(BaseServer):
                 result = await resp.json()
                 return result['query']['results']
 
-    async def _shitposting_query(self):
+    async def _shitposting_query(self) -> ShitPostingAPI:
         async with aiohttp.ClientSession() as session:
             async with session.get("https://api.shitposting.space/servers.json") as resp:
                 return await resp.json()
