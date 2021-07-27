@@ -5,9 +5,8 @@ import unicodedata
 import urllib.parse
 
 import aiohttp
-import requests
 from irctokens import build, Line
-from ircrobots import Bot as BaseBot, Capability
+from ircrobots import Bot as BaseBot
 from ircrobots import Server as BaseServer
 from ircrobots import ConnectionParams
 
@@ -97,7 +96,7 @@ class Server(BaseServer):
         s = await self._shitposting_query()
         s = s['servers']
         fucked = [(x['name'], x['skew']) for x in s.values() if x.get('skew', 0) < -1 or x.get('skew', 0) > 1]
-        fucked.sort(key=lambda x:x[1])
+        fucked.sort(key=lambda x: x[1])
         if not fucked:
             return await self.msg(line, "I'm not seeing any really fucked clocks right now.")
 
@@ -223,7 +222,7 @@ class Server(BaseServer):
         s = await self._shitposting_query()
         s = s['servers']
         outdated = [(x['name'], x['version']) for x in s.values() if self.is_deprecated(x.get('version'))]
-        outdated.sort(key=lambda x:x[1])
+        outdated.sort(key=lambda x: x[1])
         if not outdated:
             return await self.msg(line, "I'm not seeing any outdated servers right now.")
 
