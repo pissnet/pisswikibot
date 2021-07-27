@@ -68,8 +68,8 @@ class Server(BaseServer):
             elif command in ('fuckedclock', 'skew'):
                 await self.fuckedclock(line)
             elif command == "help":
-                await self.msg(line, "Commands: Unicode stuff: !u <some char> | Server info: !server <servername> |"
-                                     "Lost servers: !missing | Servers w/ no spki: !nospki | !fuckedclock")
+                await self.msg(line, "Commands: Unicode stuff: !u <some char> | Server info: !server <servername> | "
+                                     "Lost servers: !missing | Servers w/ no spki: !nospki | !fuckedclock | !outdated")
 
     async def msg(self, line, msg):
         source = line.params[0]
