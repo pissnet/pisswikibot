@@ -5,9 +5,8 @@ import unicodedata
 import urllib.parse
 
 import aiohttp
-import requests
 from irctokens import build, Line
-from ircrobots import Bot as BaseBot, Capability
+from ircrobots import Bot as BaseBot
 from ircrobots import Server as BaseServer
 from ircrobots import ConnectionParams
 
@@ -20,7 +19,7 @@ wikilink_re = re.compile(r'\[\[(?:[^|\]]*\|)?([^]]+)]]')
 
 class Server(BaseServer):
     def __init__(self, *args, **kwargs):
-        super(Server, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         loop = asyncio.get_event_loop()
         loop.create_task(self.udp_stuff())
 
@@ -64,8 +63,6 @@ class Server(BaseServer):
                 await self.split_servers(line)
             elif command in ("nospki", "nospkifp"):
                 await self.no_spki(line)
-            elif command == "outdated":
-                await self.outdated_servers(line)
             elif command == "u":
                 await self.unicoder(line, params)
             elif command in ('fuckedclock', 'skew'):
@@ -97,7 +94,7 @@ class Server(BaseServer):
         s = await self._shitposting_query()
         s = s['servers']
         fucked = [(x['name'], x['skew']) for x in s.values() if x.get('skew', 0) < -1 or x.get('skew', 0) > 1]
-        fucked.sort(key=lambda x:x[1])
+        fucked.sort(key=lambda x: x[1])
         if not fucked:
             return await self.msg(line, "I'm not seeing any really fucked clocks right now.")
 
@@ -141,7 +138,7 @@ class Server(BaseServer):
 
         splitnodes = list(set(wikinodes) - set(linkednodes))
         missingnodes = list(set(linkednodes2) - set(wikinodes))
-        splitnodes.remove("pbody.polsaker.com")  # We don't wanna show that ugly fucker do we
+        splitnodes.remove("pbody.polsaker.com")  # We don't wanna show that ugly fucker don't we
 
         splitnodes = ", ".join(splitnodes)
         missingnodes = ", ".join(missingnodes)
@@ -218,17 +215,6 @@ class Server(BaseServer):
         message += f", peers: {data['links']}"
         message += f" - https://wiki.letspiss.net/wiki/Server:{data['servername']}"
         await self.send(build("PRIVMSG", [source, message]))
-
-    async def outdated_servers(self, line: Line):
-        s = await self._shitposting_query()
-        s = s['servers']
-        outdated = [(x['name'], x['version']) for x in s.values() if self.is_deprecated(x.get('version'))]
-        outdated.sort(key=lambda x:x[1])
-        if not outdated:
-            return await self.msg(line, "I'm not seeing any outdated servers right now.")
-
-        outdated = [f"{x[0]} ({x[1]})" for x in outdated]
-        return await self.msg(line, f"Outdated servers: {', '.join(outdated)}")
 
     async def get_pagedata(self, page):
         async with aiohttp.ClientSession() as session:
