@@ -78,7 +78,9 @@ class Server(BaseServer):
         # If somebody sends a message to @#channel I will cry.
         if "#" not in line.params[0]:
             source = line.hostmask.nickname
-        await self.send(build("PRIVMSG", [source, msg]))
+        MSGLEN = 400 - len(f"PRIVMSG {source} :\r\n".encode())
+        for i in range(0, len(msg), MSGLEN):
+            await self.send(build("PRIVMSG", [source, msg[i:i + MSGLEN]]))
 
     async def _semantic_query(self, query):
         async with aiohttp.ClientSession() as session:
@@ -221,7 +223,7 @@ class Server(BaseServer):
     async def outdated_servers(self, line: Line):
         s = await self._shitposting_query()
         s = s['servers']
-        outdated = [(x['name'], x['version']) for x in s.values() if self.is_deprecated(x.get('version'))]
+        outdated = [(x['name'], x['version'][:-1]) for x in s.values() if self.is_deprecated(x.get('version'))]
         outdated.sort(key=lambda x: x[1])
         if not outdated:
             return await self.msg(line, "I'm not seeing any outdated servers right now.")
