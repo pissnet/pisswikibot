@@ -64,6 +64,8 @@ class Server(BaseServer):
                 await self.split_servers(line)
             elif command in ("nospki", "nospkifp"):
                 await self.no_spki(line)
+            elif command == "outdated":
+                await self.outdated_servers(line)
             elif command == "u":
                 await self.unicoder(line, params)
             elif command in ('fuckedclock', 'skew'):
@@ -216,6 +218,17 @@ class Server(BaseServer):
         message += f", peers: {data['links']}"
         message += f" - https://wiki.letspiss.net/wiki/Server:{data['servername']}"
         await self.send(build("PRIVMSG", [source, message]))
+
+    async def outdated_servers(self, line: Line):
+        s = await self._shitposting_query()
+        s = s['servers']
+        outdated = [(x['name'], x['version']) for x in s.values() if self.is_deprecated(x.get('version'))]
+        outdated.sort(key=lambda x:x[1])
+        if not outdated:
+            return await self.msg(line, "I'm not seeing any outdated servers right now.")
+
+        outdated = [f"{x[0]} ({x[1]})" for x in outdated]
+        return await self.msg(line, f"Outdated servers: {', '.join(outdated)}")
 
     async def get_pagedata(self, page):
         async with aiohttp.ClientSession() as session:
