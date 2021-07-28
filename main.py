@@ -28,6 +28,15 @@ ShitPostingAPIServers = TypedDict('ShitPostingAPIServers', {"sid": str, "name": 
 ShitPostingAPI = TypedDict("ShitPostingAPI", {
                            "servers": dict[str, ShitPostingAPIServers], "links": list[tuple[str, str]], "propogation": tuple[tuple[str, str], float]})
 
+# Split string at the nearest space when it's lenght is greater then 400
+def split_at_space(string: str, msglen: int) -> list[str]:
+    if len(string.encode()) > msglen:
+        return [string[:msglen].split(" ")[:-1].join(" "), string[:msglen].split(" ")[-1].join(" ")+split_at_space(string[400:])]
+    else:
+        return [string]
+
+
+
 class Server(BaseServer):
     def __init__(self, *args, **kwargs):
         super(Server, self).__init__(*args, **kwargs)
@@ -90,8 +99,8 @@ class Server(BaseServer):
         if "#" not in line.params[0]:
             source = line.hostmask.nickname
         MSGLEN = 400 - len(f"PRIVMSG {source} :\r\n".encode())
-        for i in range(0, len(msg), MSGLEN):
-            await self.send(build("PRIVMSG", [source, msg[i:i + MSGLEN]]))
+        for i in split_at_space(msg, MSGLEN):
+            await self.send(build("PRIVMSG", [source, i]))
 
     async def _semantic_query(self, query):
         async with aiohttp.ClientSession() as session:
