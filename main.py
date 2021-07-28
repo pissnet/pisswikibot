@@ -28,13 +28,14 @@ ShitPostingAPIServers = TypedDict('ShitPostingAPIServers', {"sid": str, "name": 
 ShitPostingAPI = TypedDict("ShitPostingAPI", {
                            "servers": dict[str, ShitPostingAPIServers], "links": list[tuple[str, str]], "propogation": tuple[tuple[str, str], float]})
 
-# Split string at the nearest space when it's lenght is greater then 400
-def split_at_space(string: str, msglen: int) -> list[str]:
-    if len(string.encode()) > msglen:
-        return [string[:msglen].split(" ")[:-1].join(" "), string[:msglen].split(" ")[-1].join(" ")+split_at_space(string[400:])]
-    else:
-        return [string]
 
+# Split string at the nearest space when it's lenght is greater then 400
+def split_at_space(string: str, msglen: int, splitchar: str = " ") -> list[str]:
+    if len(string.encode()) > msglen:
+        first_piece = splitchar.join(string[:msglen + 1].split(splitchar)[0:-1])
+        return [first_piece.strip(splitchar)] + split_at_space(string.replace(first_piece, "", 1), msglen, splitchar)
+    else:
+        return [string.strip(splitchar)]
 
 
 class Server(BaseServer):
@@ -93,13 +94,13 @@ class Server(BaseServer):
                 await self.msg(line, "Commands: Unicode stuff: !u <some char> | Server info: !server <servername> | "
                                      "Lost servers: !missing | Servers w/ no spki: !nospki | !fuckedclock | !outdated")
 
-    async def msg(self, line, msg):
+    async def msg(self, line, msg, splitchar=" "):
         source = line.params[0]
         # If somebody sends a message to @#channel I will cry.
         if "#" not in line.params[0]:
             source = line.hostmask.nickname
         MSGLEN = 400 - len(f"PRIVMSG {source} :\r\n".encode())
-        for i in split_at_space(msg, MSGLEN):
+        for i in split_at_space(msg, MSGLEN, splitchar):
             await self.send(build("PRIVMSG", [source, i]))
 
     async def _semantic_query(self, query):
@@ -249,7 +250,7 @@ class Server(BaseServer):
             return await self.msg(line, "I'm not seeing any outdated servers right now.")
 
         outdated = [f"{x[0]} ({x[1]})" for x in outdated]
-        return await self.msg(line, f"Outdated servers: {', '.join(outdated)}")
+        return await self.msg(line, f"Outdated servers: {', '.join(outdated)}", splitchar=", ")
 
     async def get_pagedata(self, page):
         async with aiohttp.ClientSession() as session:
