@@ -90,9 +90,12 @@ class Server(BaseServer):
                 await self.unicoder(line, params)
             elif command in ('fuckedclock', 'skew'):
                 await self.fuckedclock(line)
+            elif command == "stop":
+                await self.msg(line, "https://youtu.be/s7U2c7PFACQ?t=40")
             elif command == "help":
                 await self.msg(line, "Commands: Unicode stuff: !u <some char> | Server info: !server <servername> | "
-                                     "Lost servers: !missing | Servers w/ no spki: !nospki | !fuckedclock | !outdated")
+                                     "Lost servers: !missing | Servers w/ no spki: !nospki | !fuckedclock | !outdated "
+                                     "| !stop")
 
     async def msg(self, line, msg, splitchar=" "):
         source = line.params[0]
