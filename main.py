@@ -121,7 +121,7 @@ class Server(BaseServer):
     async def fuckedclock(self, line: Line):
         s = await self._shitposting_query()
         s = s['servers']
-        fucked = [(x['name'], x['skew']) for x in s.values() if x.get('skew', 0) < -1 or x.get('skew', 0) > 1]
+        fucked = [(x['name'], x['skew']) for x in s.values() if x.get('skew', 0) < -2 or x.get('skew', 0) > 2]
         fucked.sort(key=lambda x: x[1])
         if not fucked:
             return await self.msg(line, "I'm not seeing any really fucked clocks right now.")
