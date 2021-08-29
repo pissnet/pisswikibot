@@ -162,7 +162,7 @@ class Server(BaseServer):
 
         alldata = await self._shitposting_query()
         linkednodes = [x['name'].lower() for x in alldata['servers'].values()]
-        linkednodes2 = [x['name'].lower() for x in alldata['servers'].values() if x['description'][0] != '~']
+        linkednodes2 = [x['name'].lower() for x in alldata['servers'].values() if x['description'][0] != '~' or '.relay' in x['name']]
 
         splitnodes = list(set(wikinodes) - set(linkednodes))
         missingnodes = list(set(linkednodes2) - set(wikinodes))
