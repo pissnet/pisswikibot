@@ -1,6 +1,8 @@
 import re
 import asyncio
 import socket
+import time
+from datetime import timedelta
 from typing import TypedDict, Union
 import unicodedata
 import urllib.parse
@@ -43,12 +45,19 @@ class Server(BaseServer):
         super(Server, self).__init__(*args, **kwargs)
         loop = asyncio.get_event_loop()
         loop.create_task(self.udp_stuff())
+        self.missing = {}
 
     async def line_read(self, line: Line):
         print(f"{self.name} < {line.format()}")
         if line.command == "PRIVMSG":
             await self.on_message(line)
+        elif line.command == "NOTICE":
+            await self.on_notice(line)
+        elif line.command == "PING":
+            # (tehee)
+            await self.send(build("PRIVMSG", ["FBIVan03", "NETSPLIT LIST"]))
         elif line.command == "001":
+            await self.send(build("PRIVMSG", ["FBIVan03", "NETSPLIT LIST"]))
             await self.send(build("JOIN", ["#opers,#pissnet,#pisswiki"]))
 
     async def udp_stuff(self):
@@ -64,6 +73,43 @@ class Server(BaseServer):
                 await asyncio.sleep(0.3)
                 continue
             await self.send(build("PRIVMSG", ["#pisswiki", data.decode()]))
+
+    def td_format(self, td_object):
+        seconds = int(td_object.total_seconds())
+        periods = [
+            ('y', 60 * 60 * 24 * 365),
+            ('mo', 60 * 60 * 24 * 30),
+            ('w', 60 * 60 * 24 * 7),
+            ('d', 60 * 60 * 24),
+            ('h', 60 * 60),
+            ('m', 60),
+            ('s', 1)
+        ]
+        strings = []
+        for period_name, period_seconds in periods:
+            if seconds > period_seconds:
+                period_value, seconds = divmod(seconds, period_seconds)
+                strings.append("%s%s" % (period_value, period_name))
+        return ", ".join(strings)
+
+    async def on_notice(self, line: Line):
+        if line.hostmask.nickname != "FBIVan03":
+            return
+
+        message = line.params[-1].strip()
+        if not message[0].isnumeric():
+            return
+
+        message = message.replace(" ago]", '')
+        message = message.replace("[split ", '')
+        parts = message.split(" ")
+
+        server = parts[1]
+        timesplit = parts[-1]
+        try:
+            self.missing[server.lower()] = int(timesplit)
+        except ValueError:
+            pass
 
     async def on_message(self, line: Line):
         if line.hostmask.nickname == self.nickname:
@@ -88,7 +134,7 @@ class Server(BaseServer):
                 await self.outdated_servers(line)
             elif command == "u":
                 await self.unicoder(line, params)
-            elif command in ('fuckedclock', 'skew'):
+            elif command in ('fuckedclock', 'fuckedclocks', 'skew'):
                 await self.fuckedclock(line)
             elif command == "stop":
                 await self.msg(line, "https://youtu.be/s7U2c7PFACQ?t=40")
@@ -130,6 +176,8 @@ class Server(BaseServer):
         return await self.msg(line, f"Fucked clocks: {', '.join(fucked)}")
 
     async def unicoder(self, line: Line, params: list):
+        if not params:
+            return await self.msg(line, "Usage: !u <some weird character>")
         chars = params[0]
         if len(chars) > 10:
             return await self.msg(line, "Sorry, your input is too long! The maximum is 10 bytes")
@@ -147,9 +195,13 @@ class Server(BaseServer):
     async def no_spki(self, line: Line):
         query = "[[Server:+]] [[Category:Nodes without SPKIFP]] [[Node Type::Leaf]] [[Node Status::Active]]|limit=500"
         wikinodes = await self._semantic_query(query)
-        wikinodes = [x.replace('Server:', '').lower() for x in wikinodes.keys()]
 
         source = line.params[0]
+        if not wikinodes:
+            await self.send(build("PRIVMSG", [source, f"Nodes without spkifp: None! Wohoo."]))
+            return
+        wikinodes = [x.replace('Server:', '').lower() for x in wikinodes.keys()]
+
         if "#" not in line.params[0]:
             source = line.hostmask.nickname
         wikinodes = ", ".join(wikinodes)
@@ -162,11 +214,15 @@ class Server(BaseServer):
 
         alldata = await self._shitposting_query()
         linkednodes = [x['name'].lower() for x in alldata['servers'].values()]
-        linkednodes2 = [x['name'].lower() for x in alldata['servers'].values() if x['description'][0] != '~' or '.relay' in x['name']]
+        linkednodes2 = [x['name'].lower() for x in alldata['servers'].values() if x['description'][0] != '~' and '.relay' not in x['name']]
 
         splitnodes = list(set(wikinodes) - set(linkednodes))
         missingnodes = list(set(linkednodes2) - set(wikinodes))
         splitnodes.remove("pbody.polsaker.com")  # We don't wanna show that ugly fucker do we
+
+        # Yeah its not pretty, I know
+        splitnodes = [(x, timedelta(seconds=time.time() - self.missing.get(x, 0))) for x in splitnodes]
+        splitnodes = [f"{x} ({self.td_format(y)})" if x in self.missing else x for x, y in splitnodes]
 
         splitnodes = ", ".join(splitnodes)
         missingnodes = ", ".join(missingnodes)
@@ -182,8 +238,10 @@ class Server(BaseServer):
         else:
             query = f"[[Server:{servername}]]|?Server Name|?Owner|?SPKIFP|?Location" \
                     "|?Node Type|?Node Status|?SID"
-
-        server = await self._semantic_query(query)
+        try:
+            server = await self._semantic_query(query)
+        except KeyError:
+            return False
         alldata = await self._shitposting_query()
 
         if not server:
@@ -238,6 +296,7 @@ class Server(BaseServer):
 
         owner = re.sub(r"\[\[.*?\|(.+?)]]", "\\1", data['owner'], 0, re.MULTILINE)
         owner = owner.split(" ")
+        owner = list(filter(None, owner))
         owner = " ".join([x[0] + "\u200b" + x[1:] for x in owner])
         message += f"Type: \002{data['type']}\002, SID: {data['sid']}, location: {data['location']}, contact: {owner}"
         message += f", peers: {data['links']}"
